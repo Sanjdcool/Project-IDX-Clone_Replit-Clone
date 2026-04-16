@@ -1,0 +1,542 @@
+openapi: 3.0.3
+info:
+  title: AI App Generation API
+  version: 1.0.0
+  description: >
+    API contracts for AI-driven app generation, patch review/apply, sandbox run, fix loop, and snapshot rollback.
+
+servers:
+  - url: /api
+
+tags:
+  - name: AI
+  - name: Patch
+  - name: Run
+  - name: Snapshot
+
+paths:
+  /ai/generate:
+    post:
+      tags: [AI]
+      summary: Generate a structured patch plan from a natural language prompt
+      operationId: generatePatchPlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateRequest'
+      responses:
+        '200':
+          description: Patch plan generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/PolicyViolation'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ProviderUnavailable'
+
+  /ai/patch/{patchPlanId}:
+    get:
+      tags: [Patch]
+      summary: Get full patch plan details and diffs
+      operationId: getPatchPlan
+      parameters:
+        - $ref: '#/components/parameters/PatchPlanId'
+      responses:
+        '200':
+          description: Patch plan details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatchPlanDetailsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ai/patch/{patchPlanId}/apply:
+    post:
+      tags: [Patch]
+      summary: Apply approved file operations from a patch plan
+      operationId: applyPatchPlan
+      parameters:
+        - $ref: '#/components/parameters/PatchPlanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyPatchRequest'
+      responses:
+        '200':
+          description: Patch application result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplyPatchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/PolicyViolation'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ai/run:
+    post:
+      tags: [Run]
+      summary: Run commands in sandbox environment
+      operationId: runCommands
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunRequest'
+      responses:
+        '200':
+          description: Run started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunStartResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/PolicyViolation'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ai/fix:
+    post:
+      tags: [AI]
+      summary: Generate targeted fix patch plan from failed run
+      operationId: generateFixPlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FixRequest'
+      responses:
+        '200':
+          description: Fix patch generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FixResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/PolicyViolation'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ProviderUnavailable'
+
+  /ai/snapshots/{snapshotId}/rollback:
+    post:
+      tags: [Snapshot]
+      summary: Roll back workspace to a previous snapshot
+      operationId: rollbackSnapshot
+      parameters:
+        - $ref: '#/components/parameters/SnapshotId'
+      responses:
+        '200':
+          description: Rollback completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RollbackResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    PatchPlanId:
+      name: patchPlanId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Unique patch plan identifier
+    SnapshotId:
+      name: snapshotId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Snapshot identifier
+
+  schemas:
+    GenerateRequest:
+      type: object
+      required: [workspaceId, sessionId, prompt]
+      properties:
+        workspaceId:
+          type: string
+        sessionId:
+          type: string
+        prompt:
+          type: string
+          minLength: 1
+        constraints:
+          $ref: '#/components/schemas/GenerationConstraints'
+
+    GenerationConstraints:
+      type: object
+      properties:
+        stack:
+          type: string
+          example: react-node
+        packageManager:
+          type: string
+          enum: [npm, pnpm, yarn]
+          default: npm
+        typescript:
+          type: boolean
+          default: false
+        lockedFiles:
+          type: array
+          items:
+            type: string
+        maxFilesToChange:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 100
+        allowDeletes:
+          type: boolean
+          default: false
+
+    GenerateResponse:
+      type: object
+      required: [requestId, patchPlanId, summary, operationsCount, riskLevel]
+      properties:
+        requestId:
+          type: string
+        patchPlanId:
+          type: string
+        summary:
+          type: string
+        operationsCount:
+          type: integer
+        riskLevel:
+          type: string
+          enum: [low, medium, high]
+        diffPreview:
+          $ref: '#/components/schemas/DiffPreview'
+
+    DiffPreview:
+      type: object
+      properties:
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiffFileSummary'
+
+    DiffFileSummary:
+      type: object
+      required: [path, changeType, additions, deletions]
+      properties:
+        path:
+          type: string
+        changeType:
+          type: string
+          enum: [create, update, delete]
+        additions:
+          type: integer
+          minimum: 0
+        deletions:
+          type: integer
+          minimum: 0
+
+    PatchPlanDetailsResponse:
+      type: object
+      required: [patchPlanId, summary, operations, files]
+      properties:
+        patchPlanId:
+          type: string
+        summary:
+          type: string
+        rationale:
+          type: string
+        runSuggestions:
+          type: array
+          items:
+            type: string
+        operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/PatchOperation'
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/PatchFile'
+
+    PatchFile:
+      type: object
+      required: [path, changeType, unifiedDiff]
+      properties:
+        path:
+          type: string
+        changeType:
+          type: string
+          enum: [create, update, delete]
+        unifiedDiff:
+          type: string
+        additions:
+          type: integer
+          minimum: 0
+        deletions:
+          type: integer
+          minimum: 0
+
+    PatchOperation:
+      type: object
+      required: [op, path]
+      properties:
+        op:
+          type: string
+          enum: [create_file, update_file, delete_file]
+        path:
+          type: string
+        content:
+          type: string
+        reason:
+          type: string
+      allOf:
+        - if:
+            properties:
+              op:
+                const: create_file
+          then:
+            required: [content]
+        - if:
+            properties:
+              op:
+                const: update_file
+          then:
+            required: [content]
+
+    ApplyPatchRequest:
+      type: object
+      required: [workspaceId, sessionId]
+      properties:
+        workspaceId:
+          type: string
+        sessionId:
+          type: string
+        approvedPaths:
+          type: array
+          items:
+            type: string
+        rejectedPaths:
+          type: array
+          items:
+            type: string
+        createSnapshot:
+          type: boolean
+          default: true
+
+    ApplyPatchResponse:
+      type: object
+      required: [applyId, status, appliedCount, skippedCount]
+      properties:
+        applyId:
+          type: string
+        snapshotId:
+          type: string
+        appliedCount:
+          type: integer
+          minimum: 0
+        skippedCount:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [applied, partial, failed]
+
+    RunRequest:
+      type: object
+      required: [workspaceId, sessionId, commands]
+      properties:
+        workspaceId:
+          type: string
+        sessionId:
+          type: string
+        commands:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        runProfile:
+          type: string
+          example: build
+        stopOnFailure:
+          type: boolean
+          default: true
+
+    RunStartResponse:
+      type: object
+      required: [runId, status]
+      properties:
+        runId:
+          type: string
+        status:
+          type: string
+          enum: [started]
+
+    FixRequest:
+      type: object
+      required: [workspaceId, sessionId, runId]
+      properties:
+        workspaceId:
+          type: string
+        sessionId:
+          type: string
+        runId:
+          type: string
+        strategy:
+          type: string
+          enum: [minimal-targeted-fix, balanced, aggressive]
+          default: minimal-targeted-fix
+        maxFilesToChange:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 30
+
+    FixResponse:
+      type: object
+      required: [requestId, patchPlanId, summary, operationsCount]
+      properties:
+        requestId:
+          type: string
+        patchPlanId:
+          type: string
+        summary:
+          type: string
+        operationsCount:
+          type: integer
+
+    RollbackResponse:
+      type: object
+      required: [rollbackId, snapshotId, status]
+      properties:
+        rollbackId:
+          type: string
+        snapshotId:
+          type: string
+        status:
+          type: string
+          enum: [completed, failed]
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId, retryable]
+          properties:
+            code:
+              type: string
+              example: AI_SCHEMA_INVALID
+            message:
+              type: string
+            requestId:
+              type: string
+            retryable:
+              type: boolean
+            details:
+              type: object
+              additionalProperties: true
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    PolicyViolation:
+      description: Policy validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    ProviderUnavailable:
+      description: LLM provider unavailable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'

@@ -1,0 +1,688 @@
+openapi: 3.0.3
+info:
+  title: Site Migration, Design Recreation, and Competitive Audit API
+  version: 1.0.0
+  description: >
+    Contracts for ownership verification, crawl/extraction jobs, regeneration patch creation,
+    and read-only competitive audits.
+
+servers:
+  - url: /api
+
+tags:
+  - name: Verification
+  - name: Crawl
+  - name: Extraction
+  - name: Regeneration
+  - name: Audit
+  - name: Jobs
+
+paths:
+  /site/verification/start:
+    post:
+      tags: [Verification]
+      summary: Start domain ownership verification
+      operationId: startOwnershipVerification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationStartRequest'
+      responses:
+        '200':
+          description: Verification challenge issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationStartResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /site/verification/confirm:
+    post:
+      tags: [Verification]
+      summary: Confirm domain ownership verification
+      operationId: confirmOwnershipVerification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationConfirmRequest'
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationConfirmResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /site/jobs:
+    post:
+      tags: [Jobs]
+      summary: Create a site processing job (migration/recreation/audit)
+      operationId: createSiteJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSiteJobRequest'
+      responses:
+        '200':
+          description: Job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSiteJobResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/PolicyViolation' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /site/jobs/{jobId}:
+    get:
+      tags: [Jobs]
+      summary: Get site job status and phase progress
+      operationId: getSiteJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteJobStatusResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /site/jobs/{jobId}/cancel:
+    post:
+      tags: [Jobs]
+      summary: Cancel a running site job
+      operationId: cancelSiteJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job cancellation requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelSiteJobResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /site/jobs/{jobId}/crawl/summary:
+    get:
+      tags: [Crawl]
+      summary: Get crawl coverage summary for a job
+      operationId: getCrawlSummary
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Crawl summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrawlSummaryResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /site/jobs/{jobId}/extraction/summary:
+    get:
+      tags: [Extraction]
+      summary: Get extraction summary for a job
+      operationId: getExtractionSummary
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Extraction summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractionSummaryResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /site/jobs/{jobId}/regenerate:
+    post:
+      tags: [Regeneration]
+      summary: Generate scaffold and patch plan from extraction output
+      operationId: regenerateFromExtraction
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegenerateRequest'
+      responses:
+        '200':
+          description: Regeneration started or completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegenerateResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/PolicyViolation' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /site/jobs/{jobId}/mapping/adjust:
+    post:
+      tags: [Regeneration]
+      summary: Apply manual mapping adjustments and regenerate affected files
+      operationId: adjustMappingAndRegenerate
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MappingAdjustRequest'
+      responses:
+        '200':
+          description: Mapping updated and regeneration result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MappingAdjustResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/PolicyViolation' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /site/jobs/{jobId}/audit/report:
+    get:
+      tags: [Audit]
+      summary: Get read-only competitive audit report
+      operationId: getAuditReport
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Audit report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditReportResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /site/jobs/{jobId}/exports:
+    get:
+      tags: [Jobs]
+      summary: List available exports for a job (mode/policy filtered)
+      operationId: listJobExports
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Export artifacts list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListExportsResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /site/jobs/{jobId}/exports/{exportId}/download:
+    post:
+      tags: [Jobs]
+      summary: Create a signed download URL for an allowed export
+      operationId: createExportDownloadLink
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+        - $ref: '#/components/parameters/ExportId'
+      responses:
+        '200':
+          description: Signed URL created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateExportDownloadResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/PolicyViolation' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+components:
+  parameters:
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema: { type: string }
+    ExportId:
+      name: exportId
+      in: path
+      required: true
+      schema: { type: string }
+
+  schemas:
+    VerificationStartRequest:
+      type: object
+      required: [workspaceId, targetUrl, method]
+      properties:
+        workspaceId: { type: string }
+        targetUrl: { type: string, format: uri }
+        method:
+          type: string
+          enum: [dns_txt, html_file, meta_tag]
+
+    VerificationStartResponse:
+      type: object
+      required: [verificationId, method, token, expiresAt]
+      properties:
+        verificationId: { type: string }
+        method: { type: string }
+        token: { type: string }
+        instructions:
+          type: object
+          additionalProperties: true
+        expiresAt: { type: string, format: date-time }
+
+    VerificationConfirmRequest:
+      type: object
+      required: [workspaceId, verificationId]
+      properties:
+        workspaceId: { type: string }
+        verificationId: { type: string }
+
+    VerificationConfirmResponse:
+      type: object
+      required: [verificationId, status]
+      properties:
+        verificationId: { type: string }
+        status:
+          type: string
+          enum: [verified, failed, expired]
+        verifiedDomain: { type: string }
+        verifiedAt: { type: string, format: date-time }
+        reason: { type: string }
+
+    CreateSiteJobRequest:
+      type: object
+      required: [workspaceId, mode]
+      properties:
+        workspaceId: { type: string }
+        sessionId: { type: string }
+        mode:
+          type: string
+          enum:
+            - migration_verified
+            - recreation_layout_only
+            - audit_readonly
+        targetUrl:
+          type: string
+          format: uri
+        screenshotRefs:
+          type: array
+          items: { type: string }
+        verificationId:
+          type: string
+          description: Required for migration_verified mode
+        options:
+          $ref: '#/components/schemas/SiteJobOptions'
+
+    SiteJobOptions:
+      type: object
+      properties:
+        maxPages:
+          type: integer
+          minimum: 1
+          maximum: 5000
+          default: 300
+        maxDepth:
+          type: integer
+          minimum: 0
+          maximum: 10
+          default: 4
+        maxRuntimeSeconds:
+          type: integer
+          minimum: 30
+          maximum: 21600
+          default: 1800
+        waitStrategy:
+          type: string
+          enum: [domcontentloaded, networkidle, selector]
+          default: domcontentloaded
+        waitSelector:
+          type: string
+        interactionProfile:
+          type: string
+          enum: [none, light]
+          default: light
+        contentMode:
+          type: string
+          enum: [placeholder, rewrite, mixed]
+          default: placeholder
+        targetStack:
+          type: string
+          example: nextjs-tailwind-ts
+
+    CreateSiteJobResponse:
+      type: object
+      required: [jobId, status, mode]
+      properties:
+        jobId: { type: string }
+        mode: { type: string }
+        status:
+          type: string
+          enum: [created, queued, ownership_pending, policy_blocked]
+        requestId: { type: string }
+
+    SiteJobStatusResponse:
+      type: object
+      required: [jobId, mode, status, phase]
+      properties:
+        jobId: { type: string }
+        mode: { type: string }
+        status:
+          type: string
+          enum:
+            - created
+            - ownership_pending
+            - ownership_verified
+            - queued
+            - crawling
+            - extracting
+            - generating
+            - auditing
+            - review_ready
+            - report_ready
+            - applied
+            - completed
+            - failed
+            - canceled
+            - blocked
+        phase:
+          type: string
+          enum:
+            - intake
+            - verification
+            - crawl
+            - extraction
+            - generation
+            - audit
+            - finalize
+        progress:
+          type: object
+          properties:
+            percent: { type: integer, minimum: 0, maximum: 100 }
+            message: { type: string }
+            pagesDiscovered: { type: integer, minimum: 0 }
+            pagesProcessed: { type: integer, minimum: 0 }
+        startedAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+        error:
+          $ref: '#/components/schemas/ErrorPayload'
+
+    CancelSiteJobResponse:
+      type: object
+      required: [jobId, status]
+      properties:
+        jobId: { type: string }
+        status:
+          type: string
+          enum: [cancel_requested, canceled, cannot_cancel]
+
+    CrawlSummaryResponse:
+      type: object
+      required: [jobId, coverage]
+      properties:
+        jobId: { type: string }
+        coverage:
+          type: object
+          properties:
+            pagesDiscovered: { type: integer }
+            pagesFetched: { type: integer }
+            pagesRendered: { type: integer }
+            pagesFailed: { type: integer }
+            failureReasons:
+              type: array
+              items:
+                type: object
+                properties:
+                  code: { type: string }
+                  count: { type: integer }
+        topPaths:
+          type: array
+          items:
+            type: object
+            properties:
+              path: { type: string }
+              count: { type: integer }
+
+    ExtractionSummaryResponse:
+      type: object
+      required: [jobId, templatesDetected, componentsDetected]
+      properties:
+        jobId: { type: string }
+        templatesDetected: { type: integer }
+        componentsDetected:
+          type: array
+          items:
+            type: object
+            properties:
+              componentType: { type: string }
+              count: { type: integer }
+        confidence:
+          type: object
+          properties:
+            high: { type: integer }
+            medium: { type: integer }
+            low: { type: integer }
+            manualReviewRequiredCount: { type: integer }
+
+    RegenerateRequest:
+      type: object
+      required: [targetStack, contentMode]
+      properties:
+        targetStack: { type: string }
+        contentMode:
+          type: string
+          enum: [placeholder, rewrite, mixed]
+        routeStrategy:
+          type: string
+          enum: [inferred, simplified]
+          default: inferred
+        overwriteExisting:
+          type: boolean
+          default: false
+
+    RegenerateResponse:
+      type: object
+      required: [jobId, regenerationId, status]
+      properties:
+        jobId: { type: string }
+        regenerationId: { type: string }
+        status:
+          type: string
+          enum: [started, completed, failed, review_ready]
+        patchPlanId: { type: string }
+        filesGenerated: { type: integer, minimum: 0 }
+        unresolvedMappings: { type: integer, minimum: 0 }
+
+    MappingAdjustRequest:
+      type: object
+      required: [adjustments]
+      properties:
+        adjustments:
+          type: array
+          items:
+            type: object
+            required: [pageId, sectionId, targetComponent]
+            properties:
+              pageId: { type: string }
+              sectionId: { type: string }
+              targetComponent: { type: string }
+              propsOverride:
+                type: object
+                additionalProperties: true
+
+    MappingAdjustResponse:
+      type: object
+      required: [jobId, status]
+      properties:
+        jobId: { type: string }
+        status:
+          type: string
+          enum: [updated, regenerated, failed]
+        patchPlanId: { type: string }
+        notes:
+          type: array
+          items: { type: string }
+
+    AuditReportResponse:
+      type: object
+      required: [jobId, reportId, summary]
+      properties:
+        jobId: { type: string }
+        reportId: { type: string }
+        summary:
+          type: object
+          properties:
+            structureScore: { type: number, format: float }
+            performanceScore: { type: number, format: float }
+            seoScore: { type: number, format: float }
+            componentComplexityScore: { type: number, format: float }
+        findings:
+          type: array
+          items:
+            type: object
+            properties:
+              severity:
+                type: string
+                enum: [info, low, medium, high, critical]
+              category:
+                type: string
+                enum: [structure, performance, seo, accessibility, components]
+              title: { type: string }
+              description: { type: string }
+              recommendation: { type: string }
+        comparisons:
+          type: object
+          additionalProperties: true
+
+    ListExportsResponse:
+      type: object
+      required: [jobId, exports]
+      properties:
+        jobId: { type: string }
+        exports:
+          type: array
+          items:
+            type: object
+            properties:
+              exportId: { type: string }
+              artifactType:
+                type: string
+                enum:
+                  - report_json
+                  - report_pdf
+                  - scaffold_bundle
+                  - mapping_report
+                  - crawl_summary
+              sizeBytes: { type: integer }
+              createdAt: { type: string, format: date-time }
+              allowed: { type: boolean }
+
+    CreateExportDownloadResponse:
+      type: object
+      required: [jobId, exportId, downloadUrl, expiresAt]
+      properties:
+        jobId: { type: string }
+        exportId: { type: string }
+        downloadUrl: { type: string, format: uri }
+        expiresAt: { type: string, format: date-time }
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorPayload'
+
+    ErrorPayload:
+      type: object
+      required: [code, message, requestId, retryable]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        requestId: { type: string }
+        retryable: { type: boolean }
+        details:
+          type: object
+          additionalProperties: true
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    PolicyViolation:
+      description: Policy validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
